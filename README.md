@@ -143,9 +143,3 @@ Recommended:
 This makes the modules easy to:
 - Run side-by-side with your main backend during development.
 - Deploy independently and scale them horizontally where needed.
-
-## Roadmap
-
-This is intended to grow over time with more architecture components and “battle-tested” plug-and-play modules.
-
-If you want, I can also add a short “module template” section (folder conventions, required docs, and environment variable naming guidelines) to keep new components consistent as the collection grows.
