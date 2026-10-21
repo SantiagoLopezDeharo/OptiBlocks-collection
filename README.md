@@ -1,145 +1,151 @@
-# Plug and Play Backend Architecture Components Collection (Optimized, Reliable, Secure)
+# OptiBlocks: Plug-and-Play Backend Components
 
-Modern backend systems are easier to evolve when they are built as modules: small, well-defined components with clear responsibilities and interfaces. A modular approach improves reuse across products, reduces blast radius when changes are needed, enables independent scaling and deployments, and makes performance and security hardening more focused and testable.
+[![Docker Hub](https://img.shields.io/badge/Docker%20Hub-slincsilver-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/u/slincsilver)
+[![Go](https://img.shields.io/badge/Go-1.27.3-00ADD8?logo=go)](https://go.dev)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A growing collection of backend building blocks: generic, production-oriented architecture components designed to be “plug and play”.
+A collection of small, production-oriented Go microservices that drop into an existing backend as components. Each one moves a CPU-bound or connection-heavy job out of the main backend. Examples are WebSocket fan-out, chat delivery, and format conversion or document rendering. The main backend (Node.js/NestJS or any other stack) stays focused on business logic.
 
-The goal is to keep business logic and product development fast (using modern stacks like Node.js/TypeScript and frameworks such as NestJS), while moving CPU-bound and latency-sensitive workloads into small, dedicated services written in a compiled, high-performance language (currently Go).
-
-In practice:
-- Node.js (or any modern backend stack) acts as the orchestration / “glue” layer.
-- This collection provides independent Go microservices that implement performance-critical capabilities.
-- Each module is designed to be dropped into an architecture, configured with a small set of environment variables, and deployed as a container.
-
-## Example architecture
-
-The diagram below shows a common setup where your main backend (Node.js/NestJS or similar) stays focused on business logic, while CPU-bound and high-concurrency capabilities run as separate components.
-
-```mermaid
-flowchart LR
-  client[Web / Mobile Clients]
-  api["Main Backend (Node.js / NestJS)<br/>Business Logic + Orchestration"]
-
-  subgraph components[Plug-and-Play Components]
-    doc["Document Module<br/>Format conversion + PDF/DOCX/XLSX generation"]
-    chat["Real-Time Chat<br/>WebSocket + persistence"]
-    ui["Real-Time UI Update<br/>Fan-out broadcaster"]
-  end
-
-  client -->|HTTP/REST| api
-  client -->|WebSocket| chat
-  client -->|WebSocket| ui
-
-  api -->|HTTP| doc
-  api -->|HTTP| chat
-  api -->|HTTP| ui
-
-```
-
-## What “plug and play” means here
-
-These components are intended to be easy to integrate:
-- Clear HTTP/WebSocket interfaces.
-- Minimal configuration (typically via `.env` variables for things like JWT verification, shared secrets, ports, and backing services).
-- Docker-first local dev and deployment via `Dockerfile` / `docker-compose.yml`.
-
-The intent is not to replace your main backend. The intent is to offload specific responsibilities (high concurrency, heavy transformations, fan-out broadcasts, etc.) into focused modules that scale well and stay maintainable.
-
-## How to use components
-
-Each component is self-contained and can be run independently.
-
-General workflow:
-1. Choose the module that matches your architectural need.
-2. Run it locally with Docker Compose (recommended) or run it directly with Go.
-3. Configure required environment variables (for example `JWT_SECRET`, shared time-token secret, database URL).
-4. Integrate from your main backend using HTTP calls and/or WebSocket clients.
-
-Most modules expose:
-- A health endpoint for readiness/liveness.
-- One or more “public” endpoints (client-facing) and “private” endpoints (backend-facing).
-
-## Component index
-
-- Document Module Microservice — high-performance payload conversion + PDF/DOCX/XLSX generation: https://github.com/SantiagoLopezDeharo/document-module-microservice
-- Real-Time Chat Microservice — WebSocket chat with MongoDB persistence and JWT auth: https://github.com/SantiagoLopezDeharo/real-time-chat-microservice
-- Real-Time UI Update Microservice — secure backend-to-UI event broadcasting via HTTP publish + WebSocket fan-out: https://github.com/SantiagoLopezDeharo/real-time-ui-update-microservice
+Every component is published on Docker Hub as a signed, multi-arch image. It is configured with a handful of environment variables and integrated over plain HTTP and WebSockets.
 
 ## Components
 
-### 1) Document Module Microservice
+| Component | Image | What it does |
+|-----------|-------|--------------|
+| [Real-time UI update](https://github.com/SantiagoLopezDeharo/real-time-ui-update-microservice) | [![ui](https://img.shields.io/docker/v/slincsilver/real-time-ui-update-microservice?sort=semver&label=)](https://hub.docker.com/r/slincsilver/real-time-ui-update-microservice) [`slincsilver/real-time-ui-update-microservice`](https://hub.docker.com/r/slincsilver/real-time-ui-update-microservice) | Backend publishes one authenticated `POST`; the service fans it out over WebSockets to every subscriber of a channel, or to a single user's `user:<id>` channel |
+| [Real-time chat](https://github.com/SantiagoLopezDeharo/real-time-chat-microservice) | [![chat](https://img.shields.io/docker/v/slincsilver/real-time-chat-microservice?sort=semver&label=)](https://hub.docker.com/r/slincsilver/real-time-chat-microservice) [`slincsilver/real-time-chat-microservice`](https://hub.docker.com/r/slincsilver/real-time-chat-microservice) | One-to-one and group chat identified by participants, with REST send and history, WebSocket delivery, batched MongoDB persistence and JWT auth |
+| [Document module](https://github.com/SantiagoLopezDeharo/document-module-microservice) | [![document](https://img.shields.io/docker/v/slincsilver/document-module-microservice?sort=semver&label=)](https://hub.docker.com/r/slincsilver/document-module-microservice) [`slincsilver/document-module-microservice`](https://hub.docker.com/r/slincsilver/document-module-microservice) | Converts between JSON, YAML, TOML, XML, CSV/TSV, MsgPack, Properties and XLSX, and renders PDF, DOCX and XLSX documents from JSON instructions |
 
-High-performance data format transformation and document generation.
+## Pull and run
 
-What it does:
-- Transforms payloads between formats (JSON, XML, CSV/TSV, TOML, YAML, MsgPack, XLSX, Properties).
-- Generates documents from JSON instructions (PDF, DOCX, XLSX).
+```shell
+docker pull slincsilver/real-time-ui-update-microservice:1.1.0
+docker pull slincsilver/real-time-chat-microservice:1.0.1
+docker pull slincsilver/document-module-microservice:1.0.1
+```
 
-Typical use cases:
-- Data ingestion pipelines (normalize partner payloads to a canonical format).
-- ETL steps, integrations, and “conversion as a service”.
-- Generating invoices, reports, exports, and spreadsheets without putting CPU and memory pressure on the main backend runtime.
+### Run each one on its own
 
-Benefits:
-- Focused service built for heavy processing workloads.
-- Format negotiation via query params or headers.
-- Streaming-oriented behavior to reduce memory pressure on large payloads.
+```shell
+# Real-time UI update: backend publishes with a time token, browsers subscribe with a JWT
+docker run -d -p 8080:8080 --read-only --cap-drop=ALL --security-opt=no-new-privileges \
+  -e JWT_SECRET="$(openssl rand -hex 32)" -e TIME_TOKEN_SECRET="$(openssl rand -hex 32)" \
+  slincsilver/real-time-ui-update-microservice:1.1.0
 
-Repository: https://github.com/SantiagoLopezDeharo/document-module-microservice
+# Real-time chat: needs MongoDB
+docker network create chat
+docker run -d --name chat-mongodb --network chat mongo:7.0
+docker run -d -p 8080:8080 --network chat --read-only --cap-drop=ALL --security-opt=no-new-privileges \
+  -e JWT_SECRET="$(openssl rand -hex 32)" -e MONGO_URI=mongodb://chat-mongodb:27017 \
+  slincsilver/real-time-chat-microservice:1.0.1
 
+# Document module: no auth, so keep it on a private network; needs a writable /tmp
+docker run -d -p 127.0.0.1:8080:8080 --read-only --tmpfs /tmp:size=512m,mode=1777 \
+  --cap-drop=ALL --security-opt=no-new-privileges \
+  slincsilver/document-module-microservice:1.0.1
+```
 
-### 2) Real-Time Chat Microservice
+### Run the whole collection
 
-Production-oriented real-time chat service using WebSocket for delivery and MongoDB for persistence.
+[`docker-compose.yml`](docker-compose.yml) starts all three, plus MongoDB for chat, with hardened container settings:
 
-What it does:
-- One-on-one and group chat based on participant lists (order-independent).
-- Single WebSocket connection per user receives messages for all channels they participate in.
-- Async persistence to MongoDB with retry logic.
-- JWT-based authentication and authorization.
+```shell
+export UI_UPDATE_JWT_SECRET=$(openssl rand -hex 32)
+export UI_UPDATE_TIME_TOKEN_SECRET=$(openssl rand -hex 32)
+export CHAT_JWT_SECRET=$(openssl rand -hex 32)
+docker compose up -d
 
-Typical use cases:
-- Chat inside marketplaces, customer support tools, back-office apps.
-- Any system that needs reliable low-latency messaging plus storage.
+curl http://localhost:8081/healthz   # ui-update
+curl http://localhost:8082/health    # chat
+curl http://localhost:8083/health    # document (bound to 127.0.0.1)
+```
 
-Benefits:
-- Clean channel model (participant-based) and simple authorization rules.
-- WebSocket efficiency (no “one connection per channel” overhead).
-- Docker Compose setup for quick local boot (service + MongoDB).
+### First calls
 
-Repository: https://github.com/SantiagoLopezDeharo/real-time-chat-microservice
+```shell
+# Convert CSV to JSON with the document module
+printf 'name,qty\nwidget,3\n' | curl -s -X POST 'http://localhost:8083/convert?input=csv&output=json' --data-binary @-
+```
 
+For the time token the UI update service expects, the chat JWT claims, the full API of each service and typed TypeScript clients, see each repository's README or the [integration skill](#use-with-ai-coding-agents).
 
-### 3) Real-Time UI Update Microservice
+## Example architecture
 
-A plug-and-play real-time update broadcaster that helps distributed systems push events to UIs without bloating the main backend.
+```mermaid
+flowchart LR
+  browser[Web / mobile clients]
+  api["Main backend (Node.js / NestJS)<br/>business logic + authorisation"]
 
-What it does:
-- Backend publishes an update with a simple HTTP request.
-- The microservice validates the request using a shared secret and a time-based token.
-- Broadcasts payloads to connected WebSocket clients in parallel (designed to avoid slow clients blocking everyone).
-- Supports channel-scoped updates and separation between authenticated and public connections.
+  subgraph components[OptiBlocks components]
+    ui["Real-time UI update<br/>WebSocket fan-out"]
+    chat["Real-time chat<br/>REST + WebSocket"]
+    db[(MongoDB)]
+    doc["Document module<br/>conversion + PDF/DOCX/XLSX"]
+  end
 
-Typical use cases:
-- “Live” dashboards, operations consoles, order-status feeds, notifications.
-- Distributed architectures where the main backend should not manage large numbers of WebSocket connections.
-- Region-based deployment for global apps (deploy a node per region and broadcast locally).
+  browser -->|HTTP| api
+  browser -->|"WSS /ws?token="| ui
+  browser -->|"REST /api/messages"| chat
+  api -->|"POST /update, /publish (time token)"| ui
+  api -->|"WebSocket proxy (adds Authorization)"| chat
+  api -->|"POST /convert (private network)"| doc
+  chat --> db
+```
 
-Benefits:
-- Keeps the main backend focused on business logic.
-- Reduces Node.js event-loop pressure (or similar runtime constraints) by moving fan-out broadcasting into Go.
-- Security model for service-to-service publishing (shared secret + time-windowed token).
+- **Browsers** connect to the UI update service directly with a short-lived JWT in the query string. The chat WebSocket requires an `Authorization` header, which browsers cannot set on a WebSocket, so it goes through a backend proxy. Chat REST can be called directly.
+- **The backend** publishes UI events after its database commits and calls the document module over the private network only.
+- **TLS** is terminated by a reverse proxy or load balancer in front of anything browsers reach.
 
-Repository: https://github.com/SantiagoLopezDeharo/real-time-ui-update-microservice
+## Use with AI coding agents
 
-## Docker and deployment
+[`skills/optiblocks-integration/`](skills/optiblocks-integration) is an [Agent Skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview). It gives a coding agent everything it needs to integrate these components into a backend:
+- which service fits which need;
+- how to add the containers and secrets;
+- how to bridge the product's authentication to each service's token format;
+- the exact API contracts and error statuses;
+- typed TypeScript clients and browser wiring;
+- gotchas and a smoke test per service.
 
-Every module in this collection is designed to be containerized.
+```
+skills/optiblocks-integration/
+├── SKILL.md                  # overview, service selection, integration workflow, security checklist
+└── references/
+    ├── ui-update.md          # real-time UI update: contract, time tokens, client, smoke test
+    ├── chat.md               # real-time chat: contract, JWT claims, WebSocket proxy, smoke test
+    └── document.md           # document module: formats, generation schema, client, smoke test
+```
 
-Recommended:
-- Use the module’s `docker-compose.yml` for local development.
-- Use the module’s `Dockerfile` for CI builds and production deployments.
+To install it, copy the folder into the agent's skills directory: for Claude Code, `~/.claude/skills/` for all projects or `.claude/skills/` in one project. Any other agent can be pointed at `SKILL.md`. It is plain Markdown that links to its references.
 
-This makes the modules easy to:
-- Run side-by-side with your main backend during development.
-- Deploy independently and scale them horizontally where needed.
+```shell
+git clone https://github.com/SantiagoLopezDeharo/OptiBlocks-collection.git
+cp -r OptiBlocks-collection/skills/optiblocks-integration ~/.claude/skills/
+```
+
+## What "plug and play" means here
+
+- **Small interfaces**: a few HTTP routes and one WebSocket endpoint per service, each documented with every status code.
+- **Configuration by environment variables**: invalid configuration stops the service at startup with every problem listed.
+- **Operationally boring**: health endpoints, graceful shutdown on `SIGTERM`, bounded memory per connection and per request, and slow-consumer protection.
+- **Tested like products**: unit tests with the race detector, fuzzing, and black-box end-to-end suites. Those suites boot the real binary or image and attack it with forged tokens, protocol abuse, floods and races. A performance suite profiles each service and reports optimisation opportunities.
+
+## Image security and supply chain
+
+All images follow the same release process:
+- **Minimal base**: `FROM scratch`, a static binary and non-root UID `65532`, with no shell or package manager.
+- **Pinned, reproducible builds**: the builder image is pinned by digest, module checksums are verified, and rebuilding a commit yields the identical digest.
+- **Scan-gated publishing**: a release is refused if `govulncheck` finds a reachable vulnerability or Docker Scout finds a fixable critical or high CVE.
+- **SBOM and SLSA provenance** (max mode) are attached to every release.
+- **Keyless cosign signatures**: verify any image before deploying:
+
+```shell
+cosign verify slincsilver/real-time-ui-update-microservice:1.1.0 \
+  --certificate-identity=santiagolhgpro@gmail.com \
+  --certificate-oidc-issuer=https://accounts.google.com
+```
+
+Run them with a read-only root filesystem, all capabilities dropped and `no-new-privileges`, as the compose file does. Pin version tags or digests in production rather than `latest`.
+
+## License
+
+MIT, see [LICENSE](LICENSE). Each component repository carries its own MIT license.

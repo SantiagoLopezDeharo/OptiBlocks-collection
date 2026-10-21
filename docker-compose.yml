@@ -1,0 +1,62 @@
+# Runs every OptiBlocks component side by side for local development.
+#   UI_UPDATE_JWT_SECRET=... UI_UPDATE_TIME_TOKEN_SECRET=... CHAT_JWT_SECRET=... docker compose up -d
+# Ports: ui-update 8081, chat 8082, document 8083 (loopback only, it has no auth).
+
+x-hardened: &hardened
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  pids_limit: 256
+  stop_grace_period: 20s
+
+services:
+  ui-update:
+    <<: *hardened
+    image: slincsilver/real-time-ui-update-microservice:1.1.0
+    environment:
+      JWT_SECRET: ${UI_UPDATE_JWT_SECRET:?set UI_UPDATE_JWT_SECRET}
+      TIME_TOKEN_SECRET: ${UI_UPDATE_TIME_TOKEN_SECRET:?set UI_UPDATE_TIME_TOKEN_SECRET}
+      ALLOWED_ORIGINS: ${UI_UPDATE_ALLOWED_ORIGINS:-}
+    ports:
+      - "8081:8080"
+    mem_limit: 512m
+
+  chat:
+    <<: *hardened
+    image: slincsilver/real-time-chat-microservice:1.0.1
+    environment:
+      JWT_SECRET: ${CHAT_JWT_SECRET:?set CHAT_JWT_SECRET}
+      MONGO_URI: mongodb://chat-mongodb:27017
+    ports:
+      - "8082:8080"
+    depends_on:
+      chat-mongodb:
+        condition: service_healthy
+    mem_limit: 512m
+
+  chat-mongodb:
+    image: mongo:7.0
+    restart: unless-stopped
+    volumes:
+      - chat_mongodb_data:/data/db
+      - chat_mongodb_config:/data/configdb
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  document:
+    <<: *hardened
+    image: slincsilver/document-module-microservice:1.0.1
+    ports:
+      - "127.0.0.1:8083:8080"
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+    mem_limit: 1g
+
+volumes:
+  chat_mongodb_data:
+  chat_mongodb_config:
